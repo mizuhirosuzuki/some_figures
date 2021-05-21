@@ -1,0 +1,109 @@
+---
+title: "Ratio of export + import to GDP"
+author: ""
+date: ""
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r ScatterLabels, warning = FALSE, results = "hide"}
+# Install and load packages ---------------
+packages <- c(
+  "tidyverse",
+  "ggrepel",
+  "WDI",
+  "forcats",
+  "grid",
+  "gridExtra",
+  "countrycode",
+  "scales"
+)
+
+# Change to install = TRUE to install the required packages
+pacman::p_load(packages, character.only = TRUE, install = FALSE)
+
+# Load an example dataset ---------------
+export_data <- WDI(indicator = "NE.EXP.GNFS.KD", start = 1980, end = 2020)
+import_data <- WDI(indicator = "NE.IMP.GNFS.KD", start = 1980, end = 2020)
+gdp_data <- WDI(indicator = "NY.GDP.MKTP.KD", start = 1980, end = 2020)
+# country_code <- as_tibble(WDI_data$country)
+country_code <- codelist %>% 
+  select(iso2c, region23) %>% 
+  rename(region = region23)
+
+data <- left_join(
+    export_data, import_data, by = c("iso2c", "year", "country")
+  ) %>% 
+  left_join(
+    gdp_data, by = c("iso2c", "year", "country")
+  ) %>% 
+  rename(
+    export = NE.EXP.GNFS.KD,
+    import = NE.IMP.GNFS.KD,
+    gdp = NY.GDP.MKTP.KD
+    ) %>%
+  inner_join(country_code, by = c("iso2c")) %>%
+  filter(region != "NA", region != "Aggregates") %>%
+  mutate(export_import_for_gdp = (export + import) / gdp) %>% 
+  filter(!is.na(export_import_for_gdp))
+
+region_label <- unique(data$region)
+plot_list <- vector(mode = "list", length = length(region_label))
+for (i in seq_along(region_label)) {
+  
+  plot_list[[i]] <- data %>% 
+    mutate(region_emphasis = region == region_label[i]) %>% 
+    ggplot(aes(x = year, y = export_import_for_gdp, color = region_emphasis, group = country)) +
+    geom_line(size = 0.2, show.legend = FALSE) +
+    coord_trans(y = "log2") +
+    xlab("Year") +
+    ylab("(Export + Import) / GDP (constant 2010 US$)") +
+    scale_color_manual(values = alpha(c("gray", "red"), c(0.2, 1.0))) +
+    theme_classic() +
+    theme(
+      axis.text = element_text(size = 12),
+      axis.title = element_text(size = 12)
+    ) +
+    scale_y_continuous(
+      breaks = c(0.1, 1, 2, 4, 8)
+    )
+    
+}
+
+for (i in seq_along(region_label)) {
+  plot_list[[i]] <- plot_list[[i]] + 
+    ylab("") +
+    xlab("") +
+    ggtitle(paste0(LETTERS[i], ": ", region_label[i])) +
+    theme(
+      plot.title = element_text(size = 10),
+      axis.text = element_text(size = 7.5),
+      plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm")
+      ) 
+}
+
+ggsave(
+  filename = "figure/export_import_for_gdp.png",
+  plot = grid.arrange(
+  arrangeGrob(
+    grobs = plot_list, 
+    ncol = 3,
+    left = textGrob(
+      "(Export + Import) / GDP (constant 2010 US$)", rot = 90, vjust = 1,
+      gp = gpar(fontsize = 20)
+      ),
+    bottom = textGrob("Year", gp = gpar(fontsize = 20), vjust = -0.5)
+    )
+  ),
+  height = 24.0,
+  width = 8.0
+  )
+
+```
+
+```{r}
+knitr::include_graphics("figure/export_import_for_gdp.png")
+```
+

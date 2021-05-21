@@ -1,0 +1,16 @@
+name: "my-website"
+output_dir: "../docs"
+navbar:
+  title: "Some figures"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "GitHub"
+      href: https://github.com/mizuhirosuzuki/some_figures
+output: 
+  html_document:
+    theme: cerulean
+    #toc: true
+    #toc_float: true
+    toc_collapsed: true
+    toc_depth: 2
